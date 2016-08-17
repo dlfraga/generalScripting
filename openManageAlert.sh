@@ -7,11 +7,12 @@ ZABBIX_CONFIG_FILE=""
 HOSTNAME_BIN=$(which hostname)
 HOSTNAME="$($HOSTNAME_BIN)"
 EMAIL_SUBJECT="Erro no openmanage do servidor "$HOSTNAME" tipo: "$ALERT_TYPE""
-EMAIL_BODY="Erro no servidor detectado."
+EMAIL_BODY="Erro: "$ALERT_TYPE" detectado no servidor"
 ZABBIX_KEY="openmanage.status"
 RM_BIN=($which rm)
 TEMPFILE=$(mktemp)
 OMCONFIG_BIN=($which omconfig)
+OMREPORT_BIN=($which omreport)
 EVENT_LIST=""
 PS_BIN=$(which ps)
 GREP_BIN=$(which grep)
@@ -37,6 +38,8 @@ function configureOpenManage(){
 
 function sendEmail(){
 	echo $EMAIL_BODY > $TEMPFILE
+	echo "" >> $TEMPFILE
+	$OMREPORT_BIN chassis info >> $TEMPFILE
 	$MAIL_BIN -s "$EMAIL_SUBJECT" $SEND_NOTIFICATION_TO < $TEMPFILE
 	$RM_BIN $TEMPFILE
 }
@@ -72,12 +75,28 @@ function sendZabbixNotification(){
 	fi
 }
 
-if [ -z "$1" ]; then
-        echo "Script executed without parameters"
-        echo "We will try to configure the alerts on OpenManage"
+function usage() {
+	echo "Usage: "
+	echo "$0 --setup to configure the alerts."
+	echo "$0 --resetzabbix to send an OK to the zabbix sender"
+	echo "$0 test To send a test alert."
+	echo "$0 any other parameter to send it as an alert. Example: \"$0 pdiskfailure\" would send an alert with the message pdiskfailure"
+	exit 0
+}
+
+if [ $# -eq 0 ]; then 
+	usage
+fi
+
+if [  "$1" == "--setup" ]; then
+        echo "Executing alert setup..."
+	echo "Please copy this script to /sbin/ or change the configuration path accordingly"
         echo "To test the e-mail or zabbix alert functions execute the script with the parameter \"test\""
+	echo "Copying script to /sbin/"
+	cp -avf $0 /sbin/
 	configureOpenManage
-elif [ "$1" == "resetzabbix" ]; then
+
+elif [ "$1" == "--resetzabbix" ]; then
 	sendZabbixNotification "$1"
 else
         sendEmail
