@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>4.4</version>
+    <date>2019-11-21T13:16:42Z</date>
+    <groups>
+        <group>
+            <name>HyperV</name>
+        </group>
+    </groups>
+    <templates>
+        <template>
+            <template>ReplicaHyperV-WMI</template>
+            <name>ReplicaHyperV-WMI</name>
+            <groups>
+                <group>
+                    <name>HyperV</name>
+                </group>
+            </groups>
+            <applications>
+                <application>
+                    <name>HyperV-VM-Health</name>
+                </application>
+                <application>
+                    <name>Replication</name>
+                </application>
+            </applications>
+            <discovery_rules>
+                <discovery_rule>
+                    <name>GetVMStatus</name>
+                    <key>wmi.getall[Root\Virtualization\V2,Select * from Msvm_ComputerSystem where ReplicationMode IS NOT NULL]</key>
+                    <delay>30s</delay>
+                    <lifetime>2h</lifetime>
+                    <description>Obtem a lista de vms do servidor junto com diversas informações de configurações delas</description>
+                    <item_prototypes>
+                        <item_prototype>
+                            <name>Status de operacao da VM {#ELEMENTNAME}</name>
+                            <key>wmi.get[Root\Virtualization\V2,SELECT EnabledState from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}']</key>
+                            <delay>30m</delay>
+                            <description>The enabled and disabled states of an element. This property can also indicate the transitions between these requested states. This property is inherited from the CIM_EnabledLogicalElement class, and it is set to 2 (Enabled) for a physical computer or one of the following values for a virtual machine. For a graphical view of these states, see Remarks.&#13;
+&#13;
+https://docs.microsoft.com/en-us/windows/win32/hyperv_v2/msvm-computersystem</description>
+                            <applications>
+                                <application>
+                                    <name>HyperV-VM-Health</name>
+                                </application>
+                            </applications>
+                            <valuemap>
+                                <name>HyperVEnabledState</name>
+                            </valuemap>
+                        </item_prototype>
+                        <item_prototype>
+                            <name>Status da VM {#ELEMENTNAME}</name>
+                            <key>wmi.get[Root\Virtualization\V2,SELECT HealthState from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}']</key>
+                            <delay>30m</delay>
+                            <description>Gets the vm health information</description>
+                            <applications>
+                                <application>
+                                    <name>HyperV-VM-Health</name>
+                                </application>
+                            </applications>
+                            <valuemap>
+                                <name>HyperVHealthState</name>
+                            </valuemap>
+                            <trigger_prototypes>
+                                <trigger_prototype>
+                                    <expression>{last()}=25</expression>
+                                    <recovery_mode>RECOVERY_EXPRESSION</recovery_mode>
+                                    <recovery_expression>{last()}=5</recovery_expression>
+                                    <name>Falha crítica detectada na maquina virtual {#ELEMENTNAME}</name>
+                                    <priority>DISASTER</priority>
+                                    <description>The element is nonfunctional, and recovery might not be possible. This can indicate that the worker process for the virtual machine (Vmwp.exe) is not responding to control or information requests, or that one or more disks that contain the VHDs for the virtual machine are low on disk space.</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                                <trigger_prototype>
+                                    <expression>{last()}=20</expression>
+                                    <recovery_mode>RECOVERY_EXPRESSION</recovery_mode>
+                                    <recovery_expression>{last()}=5</recovery_expression>
+                                    <name>Falha detectada na maquina virtual {#ELEMENTNAME}</name>
+                                    <priority>DISASTER</priority>
+                                    <description>The virtual machine has suffered a major failure. This value is used when one or more disks that contain the virtual machine's VHDs is low on disk space and the virtual machine has been paused.</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                                <trigger_prototype>
+                                    <expression>{nodata(3d)}=1</expression>
+                                    <name>Impossivel checar status da VM {#ELEMENTNAME} a mais de 3 dias</name>
+                                    <priority>DISASTER</priority>
+                                    <description>Não recebemos informações da VM nos ultimos 3 dias. Verificar se o monitoramento está funcionando corretamente.</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                            </trigger_prototypes>
+                        </item_prototype>
+                        <item_prototype>
+                            <name>Status da Replicacao da VM '{#ELEMENTNAME}'</name>
+                            <key>wmi.get[Root\Virtualization\V2,SELECT ReplicationHealth from Msvm_ComputerSystem where ElementName LIKE '{#ELEMENTNAME}' ]</key>
+                            <delay>30m</delay>
+                            <description>Status da replicação da VM. Não considera os possiveis diferentes relacionamentos de replicação</description>
+                            <applications>
+                                <application>
+                                    <name>Replication</name>
+                                </application>
+                            </applications>
+                            <valuemap>
+                                <name>HyperVReplicationStatus</name>
+                            </valuemap>
+                            <trigger_prototypes>
+                                <trigger_prototype>
+                                    <expression>{nodata(3d)}=1</expression>
+                                    <name>Impossivel checar status da replicação VM {#ELEMENTNAME} a mais de 3 dias</name>
+                                    <priority>DISASTER</priority>
+                                    <description>O sistema de monitoramento não conseguiu checar a réplica da VM nos ultimos 3 dias.</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                                <trigger_prototype>
+                                    <expression>{last()}=3</expression>
+                                    <recovery_mode>RECOVERY_EXPRESSION</recovery_mode>
+                                    <recovery_expression>{last()}=1</recovery_expression>
+                                    <name>Problema de replicacao detectado na vm {#ELEMENTNAME}</name>
+                                    <priority>DISASTER</priority>
+                                    <description>Falha crítica de replicação detectada</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                                <trigger_prototype>
+                                    <expression>{last()}=0</expression>
+                                    <recovery_mode>RECOVERY_EXPRESSION</recovery_mode>
+                                    <recovery_expression>{last()}=1</recovery_expression>
+                                    <name>Replicacao inativa na vm {#ELEMENTNAME}</name>
+                                    <priority>DISASTER</priority>
+                                    <description>A replicacao nao esta ativa na VM. Verificar o problema ou desativar a trigger.</description>
+                                    <manual_close>YES</manual_close>
+                                </trigger_prototype>
+                            </trigger_prototypes>
+                        </item_prototype>
+                        <item_prototype>
+                            <name>Modo de Replicacao da VM {#ELEMENTNAME}</name>
+                            <key>wmi.get[Root\Virtualization\V2,SELECT ReplicationMode from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}']</key>
+                            <delay>30m</delay>
+                            <applications>
+                                <application>
+                                    <name>Replication</name>
+                                </application>
+                            </applications>
+                            <valuemap>
+                                <name>HyperVReplicationMode</name>
+                            </valuemap>
+                        </item_prototype>
+                    </item_prototypes>
+                    <trigger_prototypes>
+                        <trigger_prototype>
+                            <expression>{ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT EnabledState from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=3 and &#13;
+({ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT ReplicationMode from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=1&#13;
+or&#13;
+{ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT ReplicationMode from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=0&#13;
+)</expression>
+                            <recovery_mode>RECOVERY_EXPRESSION</recovery_mode>
+                            <recovery_expression>{ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT EnabledState from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=2&#13;
+ and&#13;
+ &#13;
+({ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT ReplicationMode from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=1&#13;
+or&#13;
+{ReplicaHyperV-WMI:wmi.get[Root\Virtualization\V2,SELECT ReplicationMode from Msvm_ComputerSystem where elementname LIKE '{#ELEMENTNAME}'].last()}=0)</recovery_expression>
+                            <name>Maquina virtual {#ELEMENTNAME} desligada</name>
+                            <priority>DISASTER</priority>
+                            <description>A VM está desligada. Caso isso seja esperado, desativar a trigger.</description>
+                            <manual_close>YES</manual_close>
+                        </trigger_prototype>
+                    </trigger_prototypes>
+                    <lld_macro_paths>
+                        <lld_macro_path>
+                            <lld_macro>{#ELEMENTNAME}</lld_macro>
+                            <path>$.ElementName</path>
+                        </lld_macro_path>
+                        <lld_macro_path>
+                            <lld_macro>{#HEALTHSTATE}</lld_macro>
+                            <path>$.HealthState</path>
+                        </lld_macro_path>
+                        <lld_macro_path>
+                            <lld_macro>{#LASTREPLICATIONTIME}</lld_macro>
+                            <path>$.LastReplicationTime</path>
+                        </lld_macro_path>
+                        <lld_macro_path>
+                            <lld_macro>{#OPERATIONALSTATUS}</lld_macro>
+                            <path>$.OperationalStatus</path>
+                        </lld_macro_path>
+                        <lld_macro_path>
+                            <lld_macro>{#REPLICATIONHEALTH}</lld_macro>
+                            <path>$.ReplicationHealth</path>
+                        </lld_macro_path>
+                        <lld_macro_path>
+                            <lld_macro>{#REPLICATIONSTATE}</lld_macro>
+                            <path>$.ReplicationState</path>
+                        </lld_macro_path>
+                    </lld_macro_paths>
+                </discovery_rule>
+            </discovery_rules>
+        </template>
+    </templates>
+    <value_maps>
+        <value_map>
+            <name>HyperVEnabledState</name>
+            <mappings>
+                <mapping>
+                    <value>0</value>
+                    <newvalue>Desconhecido</newvalue>
+                </mapping>
+                <mapping>
+                    <value>1</value>
+                    <newvalue>Outro</newvalue>
+                </mapping>
+                <mapping>
+                    <value>2</value>
+                    <newvalue>Rodando</newvalue>
+                </mapping>
+                <mapping>
+                    <value>3</value>
+                    <newvalue>Desativado</newvalue>
+                </mapping>
+                <mapping>
+                    <value>4</value>
+                    <newvalue>Desligando</newvalue>
+                </mapping>
+                <mapping>
+                    <value>5</value>
+                    <newvalue>Nao aplicavel</newvalue>
+                </mapping>
+                <mapping>
+                    <value>6</value>
+                    <newvalue>Ativo porem fora do ar</newvalue>
+                </mapping>
+                <mapping>
+                    <value>7</value>
+                    <newvalue>Em teste</newvalue>
+                </mapping>
+                <mapping>
+                    <value>8</value>
+                    <newvalue>Indisponivel finalizando comandos</newvalue>
+                </mapping>
+                <mapping>
+                    <value>9</value>
+                    <newvalue>Ativo porém restrito</newvalue>
+                </mapping>
+                <mapping>
+                    <value>10</value>
+                    <newvalue>Iniciando</newvalue>
+                </mapping>
+            </mappings>
+        </value_map>
+        <value_map>
+            <name>HyperVHealthState</name>
+            <mappings>
+                <mapping>
+                    <value>5</value>
+                    <newvalue>OK</newvalue>
+                </mapping>
+                <mapping>
+                    <value>20</value>
+                    <newvalue>Failure (Disk full)</newvalue>
+                </mapping>
+                <mapping>
+                    <value>25</value>
+                    <newvalue>Critical Failure (Disk Full or HyperVisor not responding)</newvalue>
+                </mapping>
+            </mappings>
+        </value_map>
+        <value_map>
+            <name>HyperVReplicationMode</name>
+            <mappings>
+                <mapping>
+                    <value>0</value>
+                    <newvalue>None</newvalue>
+                </mapping>
+                <mapping>
+                    <value>1</value>
+                    <newvalue>Primary</newvalue>
+                </mapping>
+                <mapping>
+                    <value>2</value>
+                    <newvalue>Replica</newvalue>
+                </mapping>
+            </mappings>
+        </value_map>
+        <value_map>
+            <name>HyperVReplicationStatus</name>
+            <mappings>
+                <mapping>
+                    <value>1</value>
+                    <newvalue>Ok</newvalue>
+                </mapping>
+                <mapping>
+                    <value>2</value>
+                    <newvalue>Warning</newvalue>
+                </mapping>
+                <mapping>
+                    <value>3</value>
+                    <newvalue>Critical</newvalue>
+                </mapping>
+            </mappings>
+        </value_map>
+    </value_maps>
+</zabbix_export>
